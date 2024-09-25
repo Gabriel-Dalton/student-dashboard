@@ -1,1 +1,1 @@
-# studnet-dashboard
+# student-dashboard
