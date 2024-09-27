@@ -26,10 +26,6 @@ The Teacher Platform simplifies the process of collecting, viewing, and evaluati
 - **Project Display**: Teachers can view students' projects within an iframe, with all CSS and JS assets properly linked.
 - **Multi-Page Support**: Projects with multiple HTML files are supported and displayed correctly.
 
-## Demo
-
-[Link to live demo](#) (Add link if you deploy it on platforms like Netlify, Vercel, or GitHub Pages)
-
 ## Installation
 
 Follow these steps to set up the project locally:
