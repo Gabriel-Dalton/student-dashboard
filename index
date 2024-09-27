@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <title>Teacher Platform</title>
     <style>
         body {
@@ -16,63 +17,21 @@
             margin: 0;
             flex-direction: column;
         }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
+        h1 { text-align: center; color: #333; }
         #login, #dashboard {
-            padding: 20px;
-            background: white;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            width: 100%;
-            max-width: 400px;
+            padding: 20px; background: white; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px; width: 100%; max-width: 400px;
         }
-        input, button {
-            display: block;
-            margin: 10px 0;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #dashboard {
-            display: none;
-        }
-        #iframeDisplay {
-            margin-top: 20px;
-        }
-        #projectList {
-            list-style-type: none;
-            padding: 0;
-        }
-        #projectList li {
-            margin: 10px 0;
-            padding: 10px;
-            background: #f1f1f1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 5px;
-        }
-        #projectList button {
-            background-color: #28a745;
-            margin-left: 10px;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
+        input, button { display: block; margin: 10px 0; padding: 10px; width: 100%; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #0056b3; }
+        #dashboard { display: none; }
+        #iframeDisplay { margin-top: 20px; width: 100%; height: 600px; }
+        #projectList { list-style-type: none; padding: 0; }
+        #projectList li { margin: 10px 0; padding: 10px; background: #f1f1f1; display: flex; justify-content: space-between; align-items: center; border-radius: 5px; }
+        #projectList button { background-color: #28a745; margin-left: 10px; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 5px; }
+        #fileLinks { display: none; padding: 10px; margin-top: 20px; background: white; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); border-radius: 8px; max-width: 300px; overflow: auto; }
+        #fileLinks a { display: block; margin: 5px 0; text-decoration: none; color: #007bff; }
     </style>
 </head>
 <body>
@@ -89,127 +48,137 @@
         <button onclick="logout()">Logout</button>
         
         <h3>Upload Your Project</h3>
-        <input type="file" id="projectFile" accept=".html"/>
+        <input type="file" id="projectFile" accept=".zip"/>
         <button onclick="uploadProject()">Upload</button>
         
         <h3>Your Projects</h3>
         <ul id="projectList"></ul>
 
-        <div id="iframeDisplay"></div>
+        <div id="iframeDisplay">
+            <iframe id="projectIframe" style="width:100%; height:500px;" frameborder="0"></iframe>
+        </div>
     </div>
 
     <script>
-        // Initialize Supabase with your project details
         const SUPABASE_URL = 'https://zhtlmaqsfopglzhfjsmo.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodGxtYXFzZm9wZ2x6aGZqc21vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjcyODY5MTAsImV4cCI6MjA0Mjg2MjkxMH0.uYdAeyXtCM_o_I7P4miWQcjiTHwP8VNKAyQqhB8nnws';
-        
-        // Properly initialize the Supabase client using the window object
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Sign Up Function
-        window.signUp = async function() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            const { data, error } = await supabase.auth.signUp({ email, password });
-            
-            if (error) {
-                alert('Error during sign up: ' + error.message);
-            } else {
-                alert('Signed up successfully! Please check your email to confirm your registration and then log in.');
-            }
-        };
-        
         // Sign In Function
         window.signIn = async function() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                });
-                
-                if (error) {
-                    alert('Error during sign in: ' + error.message);
-                } else if (data && data.user) {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) { alert('Error during sign in: ' + error.message); }
+                else if (data && data.user) {
                     document.getElementById('login').style.display = 'none';
                     document.getElementById('dashboard').style.display = 'block';
                     document.getElementById('username').textContent = data.user.email;
                     fetchProjects();
                 }
-            } catch (error) {
-                console.error('Unexpected error during sign-in:', error);
-            }
+            } catch (error) { console.error('Unexpected error during sign-in:', error); }
         };
-        
-        // Logout Function
-        window.logout = async function() {
-            const { error } = await supabase.auth.signOut();
-            if (!error) {
-                document.getElementById('login').style.display = 'block';
-                document.getElementById('dashboard').style.display = 'none';
-            }
-        };
-        
+
         // Upload Project Function
         window.uploadProject = async function() {
             const projectFile = document.getElementById('projectFile').files[0];
-            if (!projectFile || !projectFile.name.endsWith('.html')) {
-                return alert('Please select an HTML file to upload.');
+            if (!projectFile || !projectFile.name.endsWith('.zip')) {
+                return alert('Please select a ZIP file containing your project.');
             }
-        
-            const { data, error } = await supabase
-                .storage
-                .from('projects')
-                .upload(`public/${projectFile.name}`, projectFile, {
-                    cacheControl: '3600',
-                    upsert: true
+
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(projectFile);
+
+            const projectFolder = `public/${Date.now()}_${projectFile.name.replace('.zip', '')}/`;
+            let htmlContent = "";
+            let assets = {};
+
+            // Extract files
+            for (const [fileName, fileData] of Object.entries(zipContent.files)) {
+                if (fileData.dir) continue; 
+                const fileContent = await fileData.async("blob");
+
+                if (fileName.toLowerCase().endsWith(".html")) {
+                    htmlContent = await fileData.async("text");
+                } else {
+                    assets[fileName] = URL.createObjectURL(fileContent); 
+                }
+
+                const { error } = await supabase.storage.from('projects').upload(`${projectFolder}${fileName}`, fileContent, {
+                    cacheControl: '3600', upsert: true
                 });
-        
-            if (error) {
-                alert('Upload error: ' + error.message);
-            } else {
-                alert('Project uploaded successfully!');
-                fetchProjects();
+
+                if (error) {
+                    alert(`Error uploading ${fileName}: ${error.message}`);
+                    return;
+                }
             }
+
+            // Now replace paths in HTML content with Supabase URLs
+            for (const assetFile in assets) {
+                const supabaseUrl = `${SUPABASE_URL}/storage/v1/object/public/projects/${projectFolder}${assetFile}`;
+                htmlContent = htmlContent.replace(new RegExp(assetFile, 'g'), supabaseUrl);
+            }
+
+            displayProjectContent(htmlContent);
+            fetchProjects();
         };
-        
-        // Fetch Projects and Display Function
+
+        // Display HTML content directly in the iframe
+        function displayProjectContent(content) {
+            const iframe = document.getElementById('projectIframe');
+            iframe.srcdoc = content;  // Insert HTML into iframe via srcdoc
+        }
+
+        // Fetch and display project list
         window.fetchProjects = async function() {
-            const { data, error } = await supabase
-                .storage
-                .from('projects')
-                .list('public', { limit: 100, offset: 0, sortBy: { column: 'name', order: 'asc' } });
-        
-            if (error) {
-                console.log('Fetch error: ' + error.message);
-            } else {
-                const projectList = document.getElementById('projectList');
-                projectList.innerHTML = '';
-                data.forEach(project => {
+            const { data, error } = await supabase.storage.from('projects').list('public', { limit: 100, offset: 0 });
+            if (error) { console.log('Fetch error: ' + error.message); return; }
+
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
+            data.forEach(project => {
+                if (project.name.endsWith('/')) {
                     const li = document.createElement('li');
-                    li.textContent = project.name;
-        
+                    li.textContent = project.name.replace('public/', '').replace('/', '');
+
                     const viewButton = document.createElement('button');
                     viewButton.textContent = 'View';
-                    viewButton.onclick = () => displayProject(project.name);
-        
+                    viewButton.onclick = () => loadProjectFromSupabase(project.name);
+
                     li.appendChild(viewButton);
                     projectList.appendChild(li);
-                });
+                }
+            });
+        };
+
+        // Load a project from Supabase by fetching and injecting it into the iframe
+        async function loadProjectFromSupabase(folderName) {
+            const { data, error } = await supabase.storage.from('projects').list(folderName);
+            if (error) { console.log('Error fetching project files:', error.message); return; }
+
+            let htmlContent = "";
+            const assets = {};
+
+            // Fetch HTML file content
+            for (const file of data) {
+                const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/projects/${folderName}${file.name}`;
+
+                if (file.name.endsWith(".html") && !htmlContent) {
+                    htmlContent = await fetch(fileUrl).then(res => res.text());
+                } else if (file.name.match(/\.(css|js|png|jpg|jpeg|gif|webp)$/)) {
+                    assets[file.name] = fileUrl;
+                }
             }
-        };
-        
-        // Display Project in Iframe Function
-        window.displayProject = function(fileName) {
-            const iframeDisplay = document.getElementById('iframeDisplay');
-            iframeDisplay.innerHTML = `
-                <iframe src="${SUPABASE_URL}/storage/v1/object/public/projects/${fileName}" 
-                        width="100%" height="600px"></iframe>
-            `;
-        };
+
+            // Replace local paths with Supabase URLs in HTML
+            for (const assetFile in assets) {
+                htmlContent = htmlContent.replace(new RegExp(assetFile, 'g'), assets[assetFile]);
+            }
+
+            displayProjectContent(htmlContent);
+        }
     </script>
 </body>
 </html>
